@@ -180,6 +180,13 @@ body[data-mood="peach"] .nav{background:rgba(255,241,236,.85)}
 .dl-box .corner-right{position:absolute;right:-6px;top:-14px;width:118px;transform:rotate(-12deg)}
 .dl-box .row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:18px;font-size:13px;color:var(--brown)}
 .dl-box .row span{background:rgba(255,255,255,.62);padding:6px 14px;border-radius:999px;font-weight:700}
+/* 下载数贴纸：拿到真实数据才显示，取不到则隐藏，不显示假数字 */
+.dl-count{display:none;margin:14px auto 0;width:fit-content;max-width:100%;
+  background:#fff;border:2px dashed var(--gold);border-radius:999px;padding:7px 18px;
+  font-size:13px;font-weight:700;color:var(--brown);box-shadow:0 4px 12px rgba(150,95,55,.1)}
+.dl-count b{color:var(--red);font-size:16px;margin:0 2px}
+.dl-count.show{display:block}
+.hero-actions .dl-count{margin:12px 0 0}
 
 /* 安装步骤 */
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
@@ -285,6 +292,7 @@ footer .copy{font-size:12.5px;opacity:.65;line-height:1.9}
         当前版本 <b id="verBadge">v1.0.2</b> · <span id="sizeBadge">约 134 MB</span> · 完全免费<br>
         仅支持 Windows；装一次，之后<b>自动更新</b>
       </div>
+      <div class="dl-count js-dlcount" aria-live="polite"></div>
     </div>
 
     <div class="hero-art reveal">
@@ -359,6 +367,7 @@ footer .copy{font-size:12.5px;opacity:.65;line-height:1.9}
       <a class="dl-btn js-dl" href="https://github.com/GoodmorningHi/Good-morning.Hi/releases/download/v1.0.2/Good-morning.Hi-Setup-1.0.2.exe">
         <span class="bear">⬇</span> 下载 <span id="verInline">v1.0.2</span> 安装包
       </a>
+      <div class="dl-count js-dlcount" aria-live="polite"></div>
       <div class="row">
         <span>✦ Windows 专用</span><span id="sizeInline">约 134 MB</span><span>💛 完全免费</span><span>✧ 自动更新</span>
       </div>
@@ -438,6 +447,25 @@ footer .copy{font-size:12.5px;opacity:.65;line-height:1.9}
       applyRelease(ver,url,size);
     })
     .catch(function(){ /* 网络不通就用兜底，页面照样能下载 */ });
+
+  /* 1.5) 累计下载数：统计所有 Release 里 .exe 安装包的下载次数之和。
+         GitHub 的 download_count 只有拿到数据才显示贴纸，取不到则保持隐藏，不造假数字。 */
+  fetch('https://api.github.com/repos/'+REPO+'/releases?per_page=100',{headers:{'Accept':'application/vnd.github+json'}})
+    .then(function(r){ return r.ok?r.json():Promise.reject(new Error('http '+r.status)); })
+    .then(function(list){
+      var total=0;
+      (list||[]).forEach(function(rel){
+        (rel.assets||[]).forEach(function(a){
+          if(/\.exe$/i.test(a.name) && isFinite(a.download_count)) total+=a.download_count;
+        });
+      });
+      if(total<=0) return;   /* 全新发布、还没人下载时不显示 0 */
+      var label='已被下载 <b>'+total.toLocaleString('zh-CN')+'</b> 次 · 谢谢每一份喜欢 💛';
+      document.querySelectorAll('.js-dlcount').forEach(function(el){
+        el.innerHTML=label; el.classList.add('show');
+      });
+    })
+    .catch(function(){ /* 取不到就保持隐藏 */ });
 
   /* 2) 换个心情：奶油日 / 蜜桃夕 */
   var moodBtn=document.getElementById('moodBtn');
